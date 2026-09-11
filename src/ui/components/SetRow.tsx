@@ -27,6 +27,9 @@ interface Props {
   onChange: (patch: Partial<RowValue>) => void;
   onTogglePain: () => void;
   calibrating?: boolean;
+  /** Editing a past session: no logging, no timer — ✓ becomes Done, plus a Delete set action. */
+  editMode?: boolean;
+  onDelete?: () => void;
 }
 
 function unitFor(row: PlannedSetRow): string {
@@ -39,7 +42,7 @@ function unitFor(row: PlannedSetRow): string {
  * One set. Compact when pending or logged; expanded (steppers + RIR chips +
  * a large ✓) when it is the next set to log. ✓ logs it exactly as shown.
  */
-export function SetRow({ row, value, label, logged, active, loadStep, onLog, onUnlog, onActivate, onChange, onTogglePain, calibrating }: Props) {
+export function SetRow({ row, value, label, logged, active, loadStep, onLog, onUnlog, onActivate, onChange, onTogglePain, calibrating, editMode, onDelete }: Props) {
   const c = useColors();
   const unit = unitFor(row);
   const repsText = `${value.reps}${unit}${row.perSide ? '/side' : ''}`;
@@ -54,7 +57,7 @@ export function SetRow({ row, value, label, logged, active, loadStep, onLog, onU
 
   if (!active) {
     return (
-      <Pressable onPress={logged ? undefined : onActivate} style={[styles.compact, { borderColor: c.border, opacity: logged ? 0.55 : 1 }]}>
+      <Pressable onPress={logged && !editMode ? undefined : onActivate} style={[styles.compact, { borderColor: c.border, opacity: logged && !editMode ? 0.55 : 1 }]}>
         <Txt variant="small" muted style={styles.label}>
           {label}
         </Txt>
@@ -63,13 +66,19 @@ export function SetRow({ row, value, label, logged, active, loadStep, onLog, onU
           <Text style={{ color: c.textMuted }}>{rirText}</Text>
         </Text>
         {painButton}
-        <Pressable
-          onPress={logged ? onUnlog : onLog}
-          hitSlop={6}
-          style={({ pressed }) => [styles.checkSmall, { backgroundColor: logged ? c.accent : c.surfaceRaised, opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Text style={{ color: logged ? c.accentText : c.textMuted, fontSize: 20, fontWeight: '700' }}>✓</Text>
-        </Pressable>
+        {editMode ? (
+          <View style={[styles.checkSmall, { backgroundColor: 'transparent' }]}>
+            <Text style={{ color: c.textFaint, fontSize: 18 }}>›</Text>
+          </View>
+        ) : (
+          <Pressable
+            onPress={logged ? onUnlog : onLog}
+            hitSlop={6}
+            style={({ pressed }) => [styles.checkSmall, { backgroundColor: logged ? c.accent : c.surfaceRaised, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Text style={{ color: logged ? c.accentText : c.textMuted, fontSize: 20, fontWeight: '700' }}>✓</Text>
+          </Pressable>
+        )}
       </Pressable>
     );
   }
@@ -103,9 +112,20 @@ export function SetRow({ row, value, label, logged, active, loadStep, onLog, onU
           Calibration set — go to true concentric failure, then enter the reps you got.
         </Txt>
       ) : null}
-      <Pressable onPress={onLog} style={({ pressed }) => [styles.checkBig, { backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 }]}>
-        <Text style={{ color: c.accentText, fontSize: 30, fontWeight: '700' }}>✓</Text>
-      </Pressable>
+      {editMode ? (
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          <Pressable onPress={onDelete} style={({ pressed }) => [styles.editBtn, { backgroundColor: c.surface, opacity: pressed ? 0.8 : 1 }]}>
+            <Text style={{ color: c.danger, fontSize: 16, fontWeight: '600' }}>Delete set</Text>
+          </Pressable>
+          <Pressable onPress={onLog} style={({ pressed }) => [styles.editBtn, { flex: 2, backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 }]}>
+            <Text style={{ color: c.accentText, fontSize: 18, fontWeight: '700' }}>Done</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable onPress={onLog} style={({ pressed }) => [styles.checkBig, { backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 }]}>
+          <Text style={{ color: c.accentText, fontSize: 30, fontWeight: '700' }}>✓</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -121,4 +141,5 @@ const styles = StyleSheet.create({
   steppers: { gap: space.sm, alignItems: 'center' },
   rirRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   checkBig: { height: 64, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  editBtn: { flex: 1, minHeight: 56, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
 });

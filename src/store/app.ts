@@ -36,7 +36,10 @@ interface AppState {
   setSlotOverride(key: string, exerciseId: string | null): void;
   setLastRirCalibrationAt(iso: string): void;
   markBlockReviewSeen(block: number): void;
-  resetProgram(): void;
+  /** "Reset program progress": queue position and everything derived from sessions. Start date, theme and rest settings stay. */
+  resetProgress(): void;
+  /** "Erase all data": back to factory defaults. */
+  resetAll(): void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -78,11 +81,22 @@ export const useAppStore = create<AppState>()(
         }),
       setLastRirCalibrationAt: (lastRirCalibrationAt) => set({ lastRirCalibrationAt }),
       markBlockReviewSeen: (block) => set((s) => ({ blockReviewsSeen: s.blockReviewsSeen.includes(block) ? s.blockReviewsSeen : [...s.blockReviewsSeen, block] })),
-      resetProgram: () =>
+      resetProgress: () =>
+        set({
+          queueIndex: 0,
+          activeLayoff: null,
+          manualDeloadUntilDay: null,
+          slotOverrides: {},
+          lastRirCalibrationAt: null,
+          blockReviewsSeen: [],
+        }),
+      resetAll: () =>
         set({
           programStartDay: null,
           originalStartDay: null,
           queueIndex: 0,
+          theme: 'system',
+          restSettings: { ...DEFAULT_REST_SETTINGS },
           activeLayoff: null,
           manualDeloadUntilDay: null,
           slotOverrides: {},

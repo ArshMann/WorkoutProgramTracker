@@ -10,13 +10,16 @@ interface KV {
   get(key: string): string | null;
   set(key: string, value: string): void;
   remove(key: string): void;
+  clearAll(): void;
   backend: 'mmkv' | 'sqlite';
 }
 
 function tryMmkv(): KV | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('react-native-mmkv') as { MMKV?: new (cfg?: { id: string }) => { getString(k: string): string | undefined; set(k: string, v: string): void; delete(k: string): void } };
+    const mod = require('react-native-mmkv') as {
+      MMKV?: new (cfg?: { id: string }) => { getString(k: string): string | undefined; set(k: string, v: string): void; delete(k: string): void; clearAll(): void };
+    };
     if (!mod?.MMKV) return null;
     const store = new mod.MMKV({ id: 'ppl-logger' });
     return {
@@ -24,6 +27,7 @@ function tryMmkv(): KV | null {
       get: (k) => store.getString(k) ?? null,
       set: (k, v) => store.set(k, v),
       remove: (k) => store.delete(k),
+      clearAll: () => store.clearAll(),
     };
   } catch {
     return null;
@@ -35,12 +39,18 @@ function sqliteKv(): KV {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getSqlite, runMigrations } = require('@/db/client') as typeof import('@/db/client');
   runMigrations();
-  const s = getSqlite();
   return {
     backend: 'sqlite',
-    get: (k) => s.getFirstSync<{ value: string }>('SELECT value FROM kv WHERE key = ?', [k])?.value ?? null,
-    set: (k, v) => s.runSync('INSERT INTO kv(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [k, v]),
-    remove: (k) => s.runSync('DELETE FROM kv WHERE key = ?', [k]),
+    get: (k) => getSqlite().getFirstSync<{ value: string }>('SELECT value FROM kv WHERE key = ?', [k])?.value ?? null,
+    set: (k, v) => getSqlite().runSync('INSERT INTO kv(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [k, v]),
+    remove: (k) => getSqlite().runSync('DELETE FROM kv WHERE key = ?', [k]),
+    clearAll: () => {
+      try {
+        getSqlite().runSync('DELETE FROM kv');
+      } catch {
+        // table gone (database reset) — nothing to clear
+      }
+    },
   };
 }
 

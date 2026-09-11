@@ -178,6 +178,7 @@ export const useSessionStore = create<SessionState>()(
           rirMax: row.rirTarget?.max ?? null,
           countsForProgression: row.countsForProgression,
           loggedAt: logged.loggedAt,
+          prescribedSets: exercise?.prescription.sets ?? null,
         });
         if (cal) {
           const { actualRir, delta } = calibrationDelta(cal.predictedRir, row.reps, v.reps);
@@ -220,10 +221,11 @@ export const useSessionStore = create<SessionState>()(
         const cur = s.rowValue(row).pain;
         if (a.logged[row.key]) {
           const l = { ...a.logged[row.key], pain: !cur };
+          const ex = a.session.cards[row.cardIndex]?.exercises.find((e) => e.slotIndex === row.slotIndex);
           repo.upsertSet({
             sessionId: a.sessionId,
             exerciseId: row.exerciseId,
-            substitutedFrom: a.session.cards[row.cardIndex]?.exercises.find((e) => e.slotIndex === row.slotIndex)?.substitutedFrom ?? null,
+            substitutedFrom: ex?.substitutedFrom ?? null,
             cardIndex: row.cardIndex,
             slotIndex: row.slotIndex,
             setIndex: row.setIndex,
@@ -239,6 +241,7 @@ export const useSessionStore = create<SessionState>()(
             rirMax: row.rirTarget?.max ?? null,
             countsForProgression: row.countsForProgression,
             loggedAt: l.loggedAt,
+            prescribedSets: ex?.prescription.sets ?? null,
           });
           set({ active: { ...a, logged: { ...a.logged, [row.key]: l } } });
         } else {
