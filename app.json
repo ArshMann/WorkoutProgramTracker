@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "PPL Logger",
+    "slug": "ppl-logger",
+    "version": "1.0.0",
+    "scheme": "ppllogger",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "backgroundColor": "#0E0F12",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0E0F12"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.arshmann.ppllogger",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Used to attach progress photos. Photos never leave the device.",
+        "NSCameraUsageDescription": "Used to take progress photos. Photos never leave the device."
+      }
+    },
+    "android": {
+      "package": "com.arshmann.ppllogger",
+      "adaptiveIcon": {
+        "backgroundColor": "#0E0F12",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.VIBRATE", "android.permission.POST_NOTIFICATIONS"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "rest-timer"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to attach progress photos. Photos never leave the device.",
+          "cameraPermission": "Used to take progress photos. Photos never leave the device."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
