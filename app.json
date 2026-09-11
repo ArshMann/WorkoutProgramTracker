@@ -19,7 +19,8 @@
       "bundleIdentifier": "com.arshmann.ppllogger",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Used to attach progress photos. Photos never leave the device.",
-        "NSCameraUsageDescription": "Used to take progress photos. Photos never leave the device."
+        "NSCameraUsageDescription": "Used to take progress photos. Photos never leave the device.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,7 +32,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.VIBRATE", "android.permission.POST_NOTIFICATIONS"]
+      "permissions": [
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
