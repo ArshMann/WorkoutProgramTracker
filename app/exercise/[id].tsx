@@ -5,7 +5,7 @@ import * as repo from '@/db/repo';
 import { bestE1rm } from '@/engine/e1rm';
 import { incrementFor } from '@/engine/increments';
 import { formatRirChip } from '@/engine/rir';
-import { stallStep, stallStepText } from '@/engine/stall';
+import { LOAD_TOO_HEAVY_TEXT, isLoadTooHeavy, stallStep, stallStepText } from '@/engine/stall';
 import { weekInfo } from '@/engine/week';
 import { getExercise, isCalibrationEligible, isExerciseId } from '@/program/exercises';
 import { STALL_PROTOCOL_STEPS } from '@/program/reference';
@@ -70,14 +70,18 @@ export default function ExerciseHistory() {
       {stall ? (
         <Card style={{ gap: space.sm, borderColor: c.accent }}>
           <Txt variant="caption">Stalled since {new Date(stall.flaggedAt).toLocaleDateString()}</Txt>
-          {(() => {
-            const step = stall.stepOverride ?? stallStep(new Date(stall.flaggedAt), now);
-            return (
-              <Txt>
-                Step {step} of {STALL_PROTOCOL_STEPS.length}: {stallStepText(step)}
-              </Txt>
-            );
-          })()}
+          {isLoadTooHeavy(history) ? (
+            <Txt>{LOAD_TOO_HEAVY_TEXT}</Txt>
+          ) : (
+            (() => {
+              const step = stall.stepOverride ?? stallStep(new Date(stall.flaggedAt), now);
+              return (
+                <Txt>
+                  Step {step} of {STALL_PROTOCOL_STEPS.length}: {stallStepText(step)}
+                </Txt>
+              );
+            })()
+          )}
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <Button
               title="Next step"

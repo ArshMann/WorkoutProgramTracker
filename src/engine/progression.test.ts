@@ -8,7 +8,7 @@ import type { Appearance, LoggedSet } from './types';
 const bench: Prescription = { exerciseId: 'barbell-bench-press', sets: 3, reps: { min: 6, max: 10 }, rir: { min: 2, max: 2 }, rest: 'main-hypertrophy' };
 const squat: Prescription = { exerciseId: 'high-bar-back-squat', sets: 3, reps: { min: 6, max: 10 }, rir: { min: 2, max: 2 }, rest: 'main-hypertrophy' };
 const inclineDb: Prescription = { exerciseId: 'incline-db-press', sets: 3, reps: { min: 8, max: 12 }, rir: { min: 1, max: 2 }, rest: 'secondary' };
-const lateral: Prescription = { exerciseId: 'cable-lateral-raise', sets: 4, reps: { min: 12, max: 20 }, rir: { min: 0, max: 1 }, rest: 'superset' };
+const lateral: Prescription = { exerciseId: 'cable-lateral-raise', sets: 4, reps: { min: 12, max: 20 }, rir: { min: 0, max: 1 }, rest: 'isolation' };
 const ezCurl: Prescription = { exerciseId: 'ez-bar-curl', sets: 3, reps: { min: 8, max: 12 }, rir: { min: 1, max: 1 }, rest: 'isolation' };
 
 function appearance(
@@ -41,9 +41,9 @@ describe('prefill — first appearance', () => {
     ]);
   });
 
-  it('non-barbell starts at 0 with the range default RIR (max of 1–2 → 2)', () => {
+  it('non-barbell starts at 0 with the range default RIR (min of 1–2 → 1)', () => {
     const r = run(inclineDb, []);
-    expect(r.sets[0]).toMatchObject({ load: 0, reps: 8, rir: 2 });
+    expect(r.sets[0]).toMatchObject({ load: 0, reps: 8, rir: 1 });
   });
 });
 
@@ -177,7 +177,7 @@ describe('prefill — layoff and deload load factors', () => {
 
   it('RIR override replaces the prescribed target', () => {
     const r = run(bench, hist, { rirOverride: { min: 3, max: 4 }, allowProgression: false });
-    expect(r.sets[0].rir).toBe(4);
+    expect(r.sets[0].rir).toBe(3);
   });
 
   it('assisted (negative) loads get more assistance under a reduction factor', () => {

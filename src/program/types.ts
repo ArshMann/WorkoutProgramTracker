@@ -37,12 +37,7 @@ export type MovementPattern =
 export type ExerciseRole = 'main' | 'secondary' | 'isolation' | 'core';
 
 /** Part 1.6 rest table. */
-export type RestCategory =
-  | 'main-hypertrophy'
-  | 'main-strength'
-  | 'secondary'
-  | 'isolation'
-  | 'superset';
+export type RestCategory = 'main-hypertrophy' | 'main-strength' | 'secondary' | 'isolation';
 
 export type RepUnit = 'reps' | 'seconds' | 'metres';
 
@@ -86,8 +81,6 @@ export interface Prescription {
   /** Per-set override on the final set (Block 3 "last set 1", Block 5 top sets). */
   lastSet?: { reps?: RepRange; rir?: RirTarget };
   rest: RestCategory;
-  /** Exercises sharing a key inside one session are a superset pair and are interleaved. */
-  superset?: string;
   /** The document's "X or Y" alternatives. Shown at the top of the substitute sheet. */
   alternatives?: readonly string[];
   /** 'double' (Part 1.4) unless the document gives no progression rule for the drill. */

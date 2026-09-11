@@ -66,7 +66,7 @@ app/                          expo-router screens
   _layout.tsx                 stack, theme, DB migrations, notification channel
   index.tsx                   Home — NEXT card, Start, sessions this week, variants, stalls
   onboarding.tsx              the single onboarding screen: program start date (+ restore)
-  session.tsx                 Active session — cards, one-tap ✓, rest bar, calibration prompt
+  session.tsx                 Active session — cards in walk order, one-tap ✓, "Later ↓", rest bar, calibration prompt
   substitute.tsx              Part 3 substitutes for a slot (modal) + joint fallback
   exercise/[id].tsx           Exercise history, e1RM chart with block markers, stall step, increment
   exercises.tsx               Exercise list for the current block
@@ -93,7 +93,6 @@ src/
     stall.ts                  Part 11 trigger, step-per-week, multi-stall
     layoff.ts                 Part 5 matrix → load factor / RIR override / block restart
     variants.ts               minimum session, deload transforms
-    supersets.ts              A1 B1 A2 B2 interleave
     substitution.ts           Part 3 substitute lists per slot, joint-fallback rule
     types.ts                  Appearance / PlannedSession types shared with the stores
     session-builder.ts        composes all of the above into a planned session; substitutions
@@ -111,7 +110,7 @@ src/
 
 The three deliverable phases from the brief map onto the tree above:
 
-1. **The loop** — `program/` (all six blocks), `engine/{week,queue,supersets,rest,session-builder}`,
+1. **The loop** — `program/` (all six blocks), `engine/{week,queue,rest,session-builder}`,
    `db/`, `store/`, `app/{index,onboarding,session}.tsx`, rest timer (`RestBar`, `services/notifications`).
 2. **The engine** — `engine/{progression,increments,stall,layoff,variants,substitution}`,
    `app/substitute.tsx`, the variant buttons on Home, stall cards, layoff banner.
@@ -137,6 +136,13 @@ All three are in this tree; `npm test` verifies the rules directly.
   sessions and only reduces loads that were logged before the return. A 4+
   week gap moves the program-start anchor so the current block restarts at its
   week 1.
+- **No supersets.** The document's SS pairs are not encoded; every exercise is
+  straight sets in table order with the core block after the calf work.
+  Isolation rests default to 60 s to recover the time. Set counts per
+  exercise are exactly the document's.
+- **"Later ↓"** on a card moves it to the end of today's walk order (busy
+  station). It changes nothing but the order — prefill, history and
+  progression are untouched.
 - **Sessions this week** is a count over the program's own week; it never
   turns red, resets with emphasis, or warns.
 

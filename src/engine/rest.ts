@@ -9,7 +9,7 @@ export function restSeconds(category: RestCategory, settings: RestSettings = DEF
   return settings[category] ?? REST_SECONDS_DEFAULT[category];
 }
 
-/** Rest category an exercise falls into on its own (outside a superset), per Part 1.6. */
+/** Rest category an exercise falls into by its role and the block's emphasis, per Part 1.6. */
 export function roleRest(exercise: ExerciseDef, emphasis: BlockEmphasis): RestCategory {
   switch (exercise.role) {
     case 'main':

@@ -30,7 +30,7 @@ const app = (exerciseId: string, sets: Array<[number, number, number]>, date = '
 });
 
 describe('buildSession — the queue session', () => {
-  it('Block 1 PUSH: 5 cards, supersets interleaved with the shortened rest', () => {
+  it('Block 1 PUSH: 7 cards of straight sets in table order, rests by category', () => {
     const s = buildSession(ctx(), 0, 'queue');
     expect(s.kind).toBe('queue');
     expect(s.sessionType).toBe('PUSH');
@@ -40,47 +40,56 @@ describe('buildSession — the queue session', () => {
       'Barbell bench press',
       'Incline DB press (~30°)',
       'Seated DB overhead press',
-      'Cable fly (mid-height)  +  Cable lateral raise',
-      'Overhead cable triceps extension  +  Cable pressdown',
+      'Cable fly (mid-height)',
+      'Cable lateral raise',
+      'Overhead cable triceps extension',
+      'Cable pressdown',
     ]);
-    const ss = s.cards[3];
-    expect(ss.isSuperset).toBe(true);
-    expect(ss.rows.map((r) => `${r.exerciseId === 'cable-fly' ? 'A' : 'B'}${r.setIndex + 1}`)).toEqual(['A1', 'B1', 'A2', 'B2', 'B3', 'B4']);
-    expect(ss.rows.slice(0, 3).every((r) => r.restCategory === 'superset' && r.restSeconds === 60)).toBe(true);
-    // After the fly lane is exhausted the remaining lateral raises rest as isolation.
-    expect(ss.rows[4].restCategory).toBe('isolation');
-    expect(s.cards[0].rows[0].restSeconds).toBe(180);
+    expect(s.cards.every((c) => c.exercises.length === 1)).toBe(true);
+    expect(s.cards.map((c) => c.rows.length)).toEqual([3, 3, 3, 2, 4, 2, 2]);
+    expect(s.cards[0].rows[0].restSeconds).toBe(180); // main lift, hypertrophy block
+    expect(s.cards[1].rows[0].restSeconds).toBe(150); // secondary compound
+    expect(s.cards[4].rows.every((r) => r.restCategory === 'isolation' && r.restSeconds === 60)).toBe(true);
     expect(s.banner).toBeNull();
     expect(s.advancesQueue).toBe(true);
   });
 
-  it('Block 1 LEGS appends the core block, supersetted with seated calf raise', () => {
+  it('Block 1 LEGS runs the core block after the calf work, as its own card', () => {
     const s = buildSession(ctx(), 2, 'queue');
     expect(s.sessionType).toBe('LEGS');
+    expect(s.cards.map((c) => c.title)).toEqual([
+      'High-bar back squat',
+      'Romanian deadlift',
+      'Leg press',
+      'Leg extension',
+      'Seated leg curl',
+      'Standing calf raise',
+      'Seated calf raise',
+      'Core/APT block — Stage 1',
+    ]);
     const last = s.cards[s.cards.length - 1];
     expect(last.isCoreBlock).toBe(true);
-    expect(last.title).toBe('Seated calf raise  +  Core/APT block — Stage 1');
-    expect(last.rows.slice(0, 6).map((r) => r.exerciseId)).toEqual([
-      'seated-calf-raise',
+    expect(last.rows.map((r) => r.exerciseId)).toEqual([
       'dead-bug',
-      'seated-calf-raise',
       'dead-bug',
-      'seated-calf-raise',
       'dead-bug',
+      'rkc-plank',
+      'rkc-plank',
+      'rkc-plank',
+      'cable-crunch',
+      'cable-crunch',
     ]);
-    expect(last.rows.filter((r) => r.exerciseId === 'cable-crunch').length).toBe(2);
-    const deadBug = last.rows.find((r) => r.exerciseId === 'dead-bug')!;
+    const deadBug = last.rows[0];
     expect(deadBug.loadable).toBe(false);
     expect(deadBug.rir).toBeNull();
     expect(deadBug.perSide).toBe(true);
   });
 
-  it('Block 2 LEGS core block is its own card (no SS in Block 2)', () => {
+  it('Block 2 LEGS core block is Stage 2', () => {
     const s = buildSession(ctx({ now: new Date(2026, 2, 20) }), 2, 'queue');
     expect(s.block).toBe(2);
     const last = s.cards[s.cards.length - 1];
     expect(last.title).toBe('Core/APT block — Stage 2');
-    expect(last.isSuperset).toBe(false);
   });
 
   it('prefills from history and marks the suggestion', () => {
@@ -92,11 +101,11 @@ describe('buildSession — the queue session', () => {
     expect(s.cards[0].rows.map((r) => r.load)).toEqual([140, 140, 140]);
   });
 
-  it('on-ramp week 1 overrides every RIR to 4 (3–4) with a banner', () => {
+  it('on-ramp week 1 overrides every RIR to 3 (min of 3–4) with a banner', () => {
     const s = buildSession(ctx({ now: new Date(2026, 0, 6) }), 0, 'queue');
     expect(s.week).toBe(1);
     expect(s.banner).toContain('On-ramp week 1');
-    expect(s.cards.flatMap((c) => c.rows).every((r) => r.rir === 4)).toBe(true);
+    expect(s.cards.flatMap((c) => c.rows).every((r) => r.rir === 3)).toBe(true);
   });
 
   it('week 9 auto-engages the deload: half sets, 60 % loads, RIR 4, no calibration', () => {
@@ -176,10 +185,10 @@ describe('buildSession — layoff handling', () => {
     expect(s.cards[0].exercises[0].suggestion.kind).toBe('suppressed');
   });
 
-  it('2–3 weeks: −10 % and RIR 2–3 (chip 3)', () => {
+  it('2–3 weeks: −10 % and RIR 2–3 (chip 2)', () => {
     const s = buildSession(ctx({ historyByExercise: hist, layoff: layoffEffect('two-to-three-weeks', 18) }), 0, 'queue');
     expect(s.banner).toContain('−10 %');
-    expect(s.cards[0].rows[0]).toMatchObject({ load: 120, rir: 3 });
+    expect(s.cards[0].rows[0]).toMatchObject({ load: 120, rir: 2 });
   });
 
   it('a running return loop keeps the override for later sessions but only reduces loads logged before the return', () => {
@@ -198,7 +207,7 @@ describe('buildSession — layoff handling', () => {
     expect(s.banner).toContain('Return loop');
     expect(s.cards[0].rows[0].load).toBe(120); // bench: last logged before the return → −10 %
     expect(s.cards[1].rows[0].load).toBe(45); // incline: already logged after the return → unchanged
-    expect(s.cards[1].rows[0].rir).toBe(3);
+    expect(s.cards[1].rows[0].rir).toBe(2);
   });
 });
 
@@ -231,18 +240,14 @@ describe('replaceExercise — substitutions (Part 3)', () => {
     expect(swapped.cards[0].rows[0]).toMatchObject({ load: 80, rir: 2, reps: 10 });
   });
 
-  it('swapping one half of a superset keeps the interleave and the partner’s numbers', () => {
-    const s = buildSession(ctx(), 0, 'queue');
-    const swapped = replaceExercise(s, ctx(), 3, 3, 'db-fly-incline', false);
-    const card = swapped.cards[3];
-    expect(card.exercises.map((e) => e.exerciseId)).toEqual(['db-fly-incline', 'cable-lateral-raise']);
-    expect(card.rows.map((r) => r.exerciseId)).toEqual([
-      'db-fly-incline',
-      'cable-lateral-raise',
-      'db-fly-incline',
-      'cable-lateral-raise',
-      'cable-lateral-raise',
-      'cable-lateral-raise',
-    ]);
+  it('swapping a core drill keeps the other drills’ numbers', () => {
+    const s = buildSession(ctx(), 2, 'queue');
+    const core = s.cards[s.cards.length - 1];
+    const crunchSlot = core.exercises.find((e) => e.exerciseId === 'cable-crunch')!.slotIndex;
+    const swapped = replaceExercise(s, ctx(), core.index, crunchSlot, 'machine-crunch', false);
+    const card = swapped.cards[core.index];
+    expect(card.exercises.map((e) => e.exerciseId)).toEqual(['dead-bug', 'rkc-plank', 'machine-crunch']);
+    expect(card.rows.map((r) => r.exerciseId)).toEqual(['dead-bug', 'dead-bug', 'dead-bug', 'rkc-plank', 'rkc-plank', 'rkc-plank', 'machine-crunch', 'machine-crunch']);
+    expect(card.title).toBe('Core/APT block — Stage 1');
   });
 });

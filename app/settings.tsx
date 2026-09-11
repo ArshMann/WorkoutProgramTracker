@@ -22,7 +22,6 @@ const REST_LABELS: Record<RestCategory, string> = {
   'main-strength': 'Main lifts, strength blocks',
   secondary: 'Secondary compounds',
   isolation: 'Isolation',
-  superset: 'Superset pairs',
 };
 
 export default function Settings() {

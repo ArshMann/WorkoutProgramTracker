@@ -59,25 +59,6 @@ describe('seed integrity', () => {
     expect(blockForWeek(52).number).toBe(6);
   });
 
-  it('superset keys always come in pairs (or pair with the core block)', () => {
-    for (const b of BLOCKS) {
-      for (const type of ['PUSH', 'PULL', 'LEGS'] as const) {
-        const counts = new Map<string, number>();
-        for (const p of b.sessions[type]) {
-          if (p.superset) counts.set(p.superset, (counts.get(p.superset) ?? 0) + 1);
-        }
-        for (const [key, n] of counts) {
-          if (key === 'CORE') {
-            expect(type).toBe('LEGS');
-            expect(n).toBe(1);
-          } else {
-            expect(n, `${b.number} ${type} ${key}`).toBe(2);
-          }
-        }
-      }
-    }
-  });
-
   it('every rep range and RIR target is well-formed', () => {
     for (const p of allPrescriptions()) {
       expect(p.sets).toBeGreaterThan(0);
@@ -93,7 +74,7 @@ describe('seed integrity', () => {
 });
 
 describe('the document, spot-checked', () => {
-  it('week 41 PULL is Block 5 PULL: weighted pull-up 4×4–6, barbell row 4×5–8, …, hammer + wrist curl SS', () => {
+  it('week 41 PULL is Block 5 PULL: weighted pull-up 4×4–6, barbell row 4×5–8, …, hammer curl, wrist curl', () => {
     const pull = blockForWeek(41).sessions.PULL;
     expect(pull.map((p) => p.exerciseId)).toEqual([
       'pull-up',
@@ -106,7 +87,8 @@ describe('the document, spot-checked', () => {
     ]);
     expect(pull[0]).toMatchObject({ sets: 4, reps: { min: 4, max: 6 }, rir: { min: 2, max: 2 }, rest: 'main-strength' });
     expect(pull[1]).toMatchObject({ sets: 4, reps: { min: 5, max: 8 } });
-    expect(pull[5].superset).toBe(pull[6].superset);
+    expect(pull[5]).toMatchObject({ sets: 2, reps: { min: 12, max: 20 } });
+    expect(pull[6]).toMatchObject({ sets: 2, reps: { min: 12, max: 20 } });
   });
 
   it('Block 3 bench is 4×4–6, RIR 2 with the last set at RIR 1', () => {
@@ -144,7 +126,7 @@ describe('the document, spot-checked', () => {
     expect(push[0]).toMatchObject({ exerciseId: 'incline-barbell-bench', sets: 3, reps: { min: 6, max: 10 }, rir: { min: 2, max: 2 } });
     expect(push[1]).toMatchObject({ exerciseId: 'machine-chest-press', sets: 3, reps: { min: 8, max: 12 } });
     expect(push[2]).toMatchObject({ exerciseId: 'seated-barbell-ohp', sets: 3, reps: { min: 6, max: 10 } });
-    // Unlisted stays as Block 1, supersets included.
+    // Unlisted stays as Block 1.
     expect(push.slice(3).map((p) => p.exerciseId)).toEqual(getBlock(1).sessions.PUSH.slice(3).map((p) => p.exerciseId));
   });
 
@@ -166,9 +148,18 @@ describe('the document, spot-checked', () => {
     expect(b6.sessions.PUSH.find((p) => p.exerciseId === 'pec-deck')?.reps).toEqual({ min: 15, max: 20 });
   });
 
-  it('Block 1 LEGS seated calf raise is supersetted with the core block', () => {
-    const legs = getBlock(1).sessions.LEGS;
-    expect(legs[6]).toMatchObject({ exerciseId: 'seated-calf-raise', superset: 'CORE' });
+  it('no supersets anywhere: every prescription is straight sets with a plain rest category', () => {
+    for (const p of allPrescriptions()) {
+      expect(['main-hypertrophy', 'main-strength', 'secondary', 'isolation']).toContain(p.rest);
+      expect('superset' in p).toBe(false);
+    }
+  });
+
+  it("the document's per-session set counts are unchanged: Block 1 PUSH 19, PULL 21, LEGS 21 (+ core)", () => {
+    const total = (ps: readonly Prescription[]) => ps.reduce((n, p) => n + p.sets, 0);
+    expect(total(getBlock(1).sessions.PUSH)).toBe(19);
+    expect(total(getBlock(1).sessions.PULL)).toBe(21);
+    expect(total(getBlock(1).sessions.LEGS)).toBe(21);
   });
 
   it('calibration nudge is only ever eligible on machine/cable isolation', () => {

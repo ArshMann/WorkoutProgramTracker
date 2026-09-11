@@ -23,6 +23,8 @@ export interface Appearance {
   kind: SessionKind;
   /** Rep range prescribed at the time (per set, in set order). */
   repRanges: RepRange[];
+  /** RIR target prescribed at the time (per set). Absent on older rows. */
+  rirTargets?: Array<RirTarget | null>;
   sets: LoggedSet[];
   /** Load multiplier or RIR override was in effect (layoff/deload) — informational. */
   modified?: boolean;
@@ -86,9 +88,8 @@ export interface PlannedCard {
   index: number;
   title: string;
   exercises: PlannedExercise[];
-  /** Rows in execution order (interleaved for supersets). */
+  /** Rows in execution order. */
   rows: PlannedSetRow[];
-  isSuperset: boolean;
   isCoreBlock: boolean;
 }
 

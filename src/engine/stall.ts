@@ -1,4 +1,4 @@
-import { STALL_CONSECUTIVE_NO_GAIN, STALL_MULTI_THRESHOLD, STALL_STEP_DAYS } from '@/program/decisions';
+import { LOAD_TOO_HEAVY_APPEARANCES, LOAD_TOO_HEAVY_DROP, STALL_CONSECUTIVE_NO_GAIN, STALL_MULTI_THRESHOLD, STALL_STEP_DAYS } from '@/program/decisions';
 import { STALL_PROTOCOL_STEPS } from '@/program/reference';
 import { daysBetween } from './dates';
 import type { Appearance, LoggedSet } from './types';
@@ -62,3 +62,25 @@ export function stallStepText(step: number): string {
 export function isMultiStall(activeStallCount: number): boolean {
   return activeStallCount >= STALL_MULTI_THRESHOLD;
 }
+
+/**
+ * D18 — not a stall. An exercise that keeps reaching the top of its rep
+ * range but only at an RIR below the target's minimum never earns an
+ * increase (D2), so its total reps stop moving and it would look stalled.
+ * That is a load-too-heavy problem: the copy says drop 5 % and rebuild
+ * instead of walking the Part 11 list.
+ */
+export function isLoadTooHeavy(history: readonly Appearance[]): boolean {
+  const attempts = history.filter((a) => a.kind === 'queue' && a.sets.length > 0).slice(-LOAD_TOO_HEAVY_APPEARANCES);
+  if (attempts.length < LOAD_TOO_HEAVY_APPEARANCES) return false;
+  return attempts.every((a) => {
+    if (!a.rirTargets || a.sets.length < a.repRanges.length) return false;
+    return a.sets.every((s, i) => {
+      const range = a.repRanges[i] ?? a.repRanges[a.repRanges.length - 1];
+      const target = a.rirTargets![i] ?? a.rirTargets![a.rirTargets!.length - 1];
+      return !!range && !!target && s.rir !== null && s.reps >= range.max && s.rir < target.min;
+    });
+  });
+}
+
+export const LOAD_TOO_HEAVY_TEXT = `Top of the range every time, but only below the target RIR — the load is too heavy for the prescription, not a stall. Drop ${Math.round(LOAD_TOO_HEAVY_DROP * 100)} % and rebuild at the target RIR.`;

@@ -2,13 +2,12 @@ import { getCoreStage } from '@/program/core';
 import { DELOAD_LOAD_FACTOR } from '@/program/decisions';
 import { getExercise, isCalibrationEligible } from '@/program/exercises';
 import { getFullBody } from '@/program/fullbody';
-import type { Block, BlockEmphasis, Prescription, RestCategory, RirTarget } from '@/program/types';
+import type { Block, Prescription, RirTarget } from '@/program/types';
 import { incrementFor } from './increments';
 import type { LayoffEffect } from './layoff';
 import { prefill } from './progression';
-import { restSeconds, roleRest, type RestSettings } from './rest';
+import { restSeconds, type RestSettings } from './rest';
 import { JOINT_FALLBACK_LOAD_FACTOR, jointFallbackPrescription } from './substitution';
-import { interleave } from './supersets';
 import type { Appearance, PlannedCard, PlannedExercise, PlannedSession, PlannedSetRow, SessionKind, SetPrefill } from './types';
 import { deloadCorePrescriptions, deloadPrescriptions, minimumPrescriptions } from './variants';
 import { onRampRir, strengthEntryRir, weekInfo } from './week';
@@ -49,14 +48,10 @@ export function slotOverrideKey(block: number, sessionType: string, slotIndex: n
 interface PlanArgs {
   prescription: Prescription;
   slotIndex: number;
-  cardIndex: number;
-  emphasis: BlockEmphasis;
   loadFactor: number;
   loadFactorBefore?: string;
   rirOverride: RirTarget | null;
   allowProgression: boolean;
-  countsForProgression: boolean;
-  calibrationAllowed: boolean;
   isCore?: boolean;
   substitutedFrom?: string;
   jointFallback?: boolean;
@@ -66,7 +61,6 @@ interface PlanArgs {
 interface PlannedLane {
   exercise: PlannedExercise;
   sets: SetPrefill[];
-  rest: RestCategory;
 }
 
 export function planExercise(ctx: BuildContext, args: PlanArgs): PlannedLane {
@@ -94,60 +88,41 @@ export function planExercise(ctx: BuildContext, args: PlanArgs): PlannedLane {
     jointFallback: args.jointFallback,
     isCore: args.isCore,
   };
-  const rest: RestCategory = p.rest === 'superset' ? roleRest(def, args.emphasis) : p.rest;
-  return { exercise, sets: result.sets, rest };
+  return { exercise, sets: result.sets };
 }
 
-function rowsForCard(
-  ctx: BuildContext,
-  cardIndex: number,
-  lanes: PlannedLane[][],
-  kind: SessionKind,
-  calibrationAllowed: boolean,
-): PlannedSetRow[] {
-  // Each lane is a list of PlannedLane (usually one exercise; the core block is several drills in sequence).
-  const flat: Array<Array<{ lane: PlannedLane; setIndex: number }>> = lanes.map((laneExercises) =>
-    laneExercises.flatMap((lane) => lane.sets.map((_, setIndex) => ({ lane, setIndex }))),
-  );
-  const order = interleave(flat.map((l) => l.length));
+/** Straight sets, in order. A card is one exercise, or the whole core block (its drills in sequence). */
+function rowsForCard(ctx: BuildContext, cardIndex: number, lanes: PlannedLane[], kind: SessionKind, calibrationAllowed: boolean): PlannedSetRow[] {
   const countsForProgression = kind === 'queue' || kind === 'fullbody';
   const rows: PlannedSetRow[] = [];
-  order.forEach((ref, i) => {
-    const { lane, setIndex } = flat[ref.lane][ref.index];
-    const next = order[i + 1];
-    const nextIsPartner = next !== undefined && next.lane !== ref.lane;
-    const restCategory: RestCategory = nextIsPartner ? 'superset' : lane.rest;
+  for (const lane of lanes) {
     const def = getExercise(lane.exercise.exerciseId);
-    const set = lane.sets[setIndex];
-    const isLastSet = setIndex === lane.sets.length - 1;
-    rows.push({
-      key: `${cardIndex}:${lane.exercise.slotIndex}:${setIndex}`,
-      cardIndex,
-      slotIndex: lane.exercise.slotIndex,
-      exerciseId: lane.exercise.exerciseId,
-      setIndex,
-      load: set.load,
-      reps: set.reps,
-      rir: set.rir,
-      repRange: set.repRange,
-      rirTarget: set.rirTarget,
-      restSeconds: restSeconds(restCategory, ctx.restSettings),
-      restCategory,
-      loadable: def.loadable !== false,
-      repUnit: def.repUnit ?? 'reps',
-      perSide: !!def.perSide,
-      isLastSet,
-      calibrationEligible: calibrationAllowed && isLastSet && isCalibrationEligible(lane.exercise.exerciseId),
-      countsForProgression,
+    const restCategory = lane.exercise.prescription.rest;
+    lane.sets.forEach((set, setIndex) => {
+      const isLastSet = setIndex === lane.sets.length - 1;
+      rows.push({
+        key: `${cardIndex}:${lane.exercise.slotIndex}:${setIndex}`,
+        cardIndex,
+        slotIndex: lane.exercise.slotIndex,
+        exerciseId: lane.exercise.exerciseId,
+        setIndex,
+        load: set.load,
+        reps: set.reps,
+        rir: set.rir,
+        repRange: set.repRange,
+        rirTarget: set.rirTarget,
+        restSeconds: restSeconds(restCategory, ctx.restSettings),
+        restCategory,
+        loadable: def.loadable !== false,
+        repUnit: def.repUnit ?? 'reps',
+        perSide: !!def.perSide,
+        isLastSet,
+        calibrationEligible: calibrationAllowed && isLastSet && isCalibrationEligible(lane.exercise.exerciseId),
+        countsForProgression,
+      });
     });
-  });
+  }
   return rows;
-}
-
-function cardTitle(lanes: PlannedLane[][], isCoreBlock: boolean, coreLabel: string | null): string {
-  const names = lanes.map((l) => (l[0]?.exercise.isCore ? (coreLabel ?? 'Core block') : l[0].exercise.name));
-  void isCoreBlock;
-  return names.join('  +  ');
 }
 
 export function buildSession(ctx: BuildContext, queueIndex: number, variant: Variant): PlannedSession {
@@ -164,14 +139,17 @@ export function buildSession(ctx: BuildContext, queueIndex: number, variant: Var
   let prescriptions: Prescription[];
   let corePrescriptions: Prescription[] = [];
   const coreStage = getCoreStage(block.coreStage);
+  let originals: readonly Prescription[];
   if (isFullBody) {
     const fb = getFullBody(variant as 'FBA' | 'FBB');
     prescriptions = [...fb.exercises];
+    originals = prescriptions;
     if (fb.includeCore) corePrescriptions = [...coreStage.drills];
   } else {
-    const base = block.sessions[sessionType as 'PUSH' | 'PULL' | 'LEGS'].map((p, slotIndex) => {
+    originals = block.sessions[sessionType as 'PUSH' | 'PULL' | 'LEGS'];
+    const base = originals.map((p, slotIndex) => {
       const override = ctx.slotOverrides[slotOverrideKey(block.number, sessionType, slotIndex)];
-      return override && override !== p.exerciseId ? { ...p, exerciseId: override, alternatives: p.alternatives } : p;
+      return override && override !== p.exerciseId ? { ...p, exerciseId: override } : p;
     });
     if (kind === 'minimum') {
       prescriptions = minimumPrescriptions(base);
@@ -236,80 +214,43 @@ export function buildSession(ctx: BuildContext, queueIndex: number, variant: Var
   if (entryRir) bannerParts.push(`First week of a strength block: main lifts at RIR ${entryRir.min}.`);
 
   const calibrationAllowed = kind === 'queue';
-  const emphasis = block.emphasis;
 
-  // ── Plan each slot ──
-  const planFor = (p: Prescription, slotIndex: number, cardIndex: number, isCore = false, original?: Prescription): PlannedLane => {
+  const planFor = (p: Prescription, slotIndex: number, isCore = false, original?: Prescription): PlannedLane => {
     const def = getExercise(p.exerciseId);
     const useEntry = entryRir && def.role === 'main' && !isCore ? entryRir : null;
     return planExercise(ctx, {
       prescription: p,
       slotIndex,
-      cardIndex,
-      emphasis,
       loadFactor,
       loadFactorBefore,
       rirOverride: useEntry ?? rirOverride,
       allowProgression,
-      countsForProgression: allowProgression,
-      calibrationAllowed,
       isCore,
       substitutedFrom: original && original.exerciseId !== p.exerciseId ? original.exerciseId : undefined,
     });
   };
 
-  const cards: PlannedCard[] = [];
-  const consumed = new Set<number>();
-  let coreConsumed = corePrescriptions.length === 0;
-  const originals = isFullBody
-    ? prescriptions
-    : block.sessions[(sessionType as 'PUSH' | 'PULL' | 'LEGS')] ?? prescriptions;
-
-  const coreLanes = (cardIndex: number): PlannedLane[] =>
-    corePrescriptions.map((cp, i) => planFor(cp, CORE_SLOT_BASE + i, cardIndex, true));
-
-  prescriptions.forEach((p, slotIndex) => {
-    if (consumed.has(slotIndex)) return;
-    consumed.add(slotIndex);
-    const cardIndex = cards.length;
-    const lanes: PlannedLane[][] = [[planFor(p, slotIndex, cardIndex, false, originals[slotIndex])]];
-    let isSuperset = false;
-    let isCoreBlock = false;
-
-    if (p.superset === 'CORE' && !coreConsumed) {
-      lanes.push(coreLanes(cardIndex));
-      coreConsumed = true;
-      isSuperset = true;
-      isCoreBlock = true;
-    } else if (p.superset) {
-      const partnerIndex = prescriptions.findIndex((q, j) => j > slotIndex && !consumed.has(j) && q.superset === p.superset);
-      if (partnerIndex >= 0) {
-        consumed.add(partnerIndex);
-        lanes.push([planFor(prescriptions[partnerIndex], partnerIndex, cardIndex, false, originals[partnerIndex])]);
-        isSuperset = true;
-      }
-    }
-
-    const exercises = lanes.flat().map((l) => l.exercise);
-    cards.push({
+  // ── One card per exercise, in table order; the core block last ──
+  const cards: PlannedCard[] = prescriptions.map((p, slotIndex) => {
+    const cardIndex = slotIndex;
+    const lane = planFor(p, slotIndex, false, originals[slotIndex]);
+    return {
       index: cardIndex,
-      title: cardTitle(lanes, isCoreBlock, coreStage.label),
-      exercises,
-      rows: rowsForCard(ctx, cardIndex, lanes, kind, calibrationAllowed),
-      isSuperset,
-      isCoreBlock,
-    });
+      title: lane.exercise.name,
+      exercises: [lane.exercise],
+      rows: rowsForCard(ctx, cardIndex, [lane], kind, calibrationAllowed),
+      isCoreBlock: false,
+    };
   });
 
-  if (!coreConsumed) {
+  if (corePrescriptions.length) {
     const cardIndex = cards.length;
-    const lanes = [coreLanes(cardIndex)];
+    const lanes = corePrescriptions.map((cp, i) => planFor(cp, CORE_SLOT_BASE + i, true));
     cards.push({
       index: cardIndex,
       title: coreStage.label,
-      exercises: lanes.flat().map((l) => l.exercise),
+      exercises: lanes.map((l) => l.exercise),
       rows: rowsForCard(ctx, cardIndex, lanes, kind, calibrationAllowed),
-      isSuperset: false,
       isCoreBlock: true,
     });
   }
@@ -343,56 +284,41 @@ export function replaceExercise(
 ): PlannedSession {
   const card = session.cards[cardIndex];
   if (!card) return session;
-  const block = weekInfo(ctx.startDayKey, ctx.now).block;
-  const rebuiltLanes: PlannedLane[][] = [];
+  const target = card.exercises.find((e) => e.slotIndex === slotIndex);
+  if (!target) return session;
 
-  // Reconstruct lanes from the card's exercises: core drills form one lane, everything else its own lane.
-  const coreExercises = card.exercises.filter((e) => e.isCore);
-  const mainExercises = card.exercises.filter((e) => !e.isCore);
+  const original = target.substitutedFrom ?? target.exerciseId;
+  const prescription: Prescription = joint
+    ? jointFallbackPrescription(target.prescription, newExerciseId)
+    : { ...target.prescription, exerciseId: newExerciseId };
+  const replaced = planExercise(ctx, {
+    prescription,
+    slotIndex,
+    loadFactor: joint ? JOINT_FALLBACK_LOAD_FACTOR : session.loadFactor,
+    loadFactorBefore: undefined,
+    rirOverride: joint ? null : session.rirOverride,
+    allowProgression: session.countsForProgression && !joint,
+    isCore: target.isCore,
+    substitutedFrom: original,
+    jointFallback: joint,
+    rangeShiftMode: joint ? 'ignore' : 'auto',
+  });
 
-  const rePlan = (e: PlannedExercise): PlannedLane => {
-    const isTarget = e.slotIndex === slotIndex;
-    const original = e.substitutedFrom ?? e.exerciseId;
-    const basePrescription: Prescription = isTarget
-      ? joint
-        ? jointFallbackPrescription(e.prescription, newExerciseId)
-        : { ...e.prescription, exerciseId: newExerciseId }
-      : e.prescription;
-    const lane = planExercise(ctx, {
-      prescription: basePrescription,
-      slotIndex: e.slotIndex,
-      cardIndex,
-      emphasis: block.emphasis,
-      loadFactor: isTarget && joint ? JOINT_FALLBACK_LOAD_FACTOR : session.loadFactor,
-      loadFactorBefore: undefined,
-      rirOverride: isTarget && joint ? null : session.rirOverride,
-      allowProgression: session.countsForProgression && !(isTarget && joint),
-      countsForProgression: session.countsForProgression,
-      calibrationAllowed: session.kind === 'queue',
-      isCore: e.isCore,
-      substitutedFrom: isTarget ? original : e.substitutedFrom,
-      jointFallback: isTarget ? joint : e.jointFallback,
-      rangeShiftMode: isTarget && joint ? 'ignore' : 'auto',
-    });
-    if (!isTarget) {
-      // Keep the previously planned numbers for untouched exercises.
-      const prevRows = card.rows.filter((r) => r.slotIndex === e.slotIndex).sort((a, b) => a.setIndex - b.setIndex);
-      lane.sets = lane.sets.map((s, i) => (prevRows[i] ? { ...s, load: prevRows[i].load, reps: prevRows[i].reps, rir: prevRows[i].rir } : s));
-      lane.exercise = e;
-    }
-    return lane;
-  };
+  // Untouched exercises on the card keep their previously planned numbers.
+  const lanes: PlannedLane[] = card.exercises.map((e) => {
+    if (e.slotIndex === slotIndex) return replaced;
+    const prevRows = card.rows.filter((r) => r.slotIndex === e.slotIndex).sort((a, b) => a.setIndex - b.setIndex);
+    return {
+      exercise: e,
+      sets: prevRows.map((r) => ({ load: r.load, reps: r.reps, rir: r.rir, repRange: r.repRange, rirTarget: r.rirTarget })),
+    };
+  });
 
-  mainExercises.forEach((e) => rebuiltLanes.push([rePlan(e)]));
-  if (coreExercises.length) rebuiltLanes.push(coreExercises.map(rePlan));
-
-  const exercises = rebuiltLanes.flat().map((l) => l.exercise);
   const newCard: PlannedCard = {
     ...card,
-    exercises,
-    title: cardTitle(rebuiltLanes, card.isCoreBlock, card.isCoreBlock ? getCoreStage(block.coreStage).label : null),
-    rows: rowsForCard(ctx, cardIndex, rebuiltLanes, session.kind, session.kind === 'queue'),
+    exercises: lanes.map((l) => l.exercise),
+    title: card.isCoreBlock ? card.title : replaced.exercise.name,
+    rows: rowsForCard(ctx, cardIndex, lanes, session.kind, session.kind === 'queue'),
   };
-  const cards = session.cards.map((c, i) => (i === cardIndex ? newCard : c));
-  return { ...session, cards };
+  return { ...session, cards: session.cards.map((c, i) => (i === cardIndex ? newCard : c)) };
 }

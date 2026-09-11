@@ -151,6 +151,7 @@ export function getHistoryByExercise(): Record<string, Appearance[]> {
         date: s.startedAt,
         kind: s.kind as SessionKind,
         repRanges: rows.map((r) => ({ min: r.repMin, max: r.repMax })),
+        rirTargets: rows.map((r) => (r.rirMin === null ? null : { min: r.rirMin, max: r.rirMax ?? r.rirMin })),
         sets: rows.map(toLogged),
         modified: !!s.banner,
       });

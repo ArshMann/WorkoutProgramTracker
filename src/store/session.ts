@@ -41,6 +41,11 @@ export interface ActiveSession {
   /** A calibration set in progress: prediction made, waiting for the failure rep count. */
   calibration: { rowKey: string; predictedRir: number } | null;
   calibrationOffered: boolean;
+  /**
+   * Card indexes in the order you walk through them today. Purely a display
+   * order: row keys, stored sets, prefill and history are untouched by it.
+   */
+  cardOrder?: number[];
 }
 
 export interface TimerState {
@@ -59,6 +64,8 @@ interface SessionState {
   unlogRow(row: PlannedSetRow): void;
   togglePain(row: PlannedSetRow): void;
   substitute(cardIndex: number, slotIndex: number, newExerciseId: string, joint: boolean, persistForBlock: boolean): void;
+  /** "Do this later": moves the card to the end of today's walk order. */
+  moveCardToEnd(cardIndex: number): void;
   beginCalibration(rowKey: string, predictedRir: number): void;
   cancelCalibration(): void;
   markCalibrationOffered(): void;
@@ -70,8 +77,15 @@ interface SessionState {
   nextRowKey(): string | null;
 }
 
+export function orderedCards(active: ActiveSession) {
+  const order = active.cardOrder ?? active.session.cards.map((c) => c.index);
+  const known = new Set(order);
+  const missing = active.session.cards.map((c) => c.index).filter((i) => !known.has(i));
+  return [...order, ...missing].map((i) => active.session.cards[i]).filter(Boolean);
+}
+
 function nextUnlogged(active: ActiveSession): PlannedSetRow | null {
-  for (const card of active.session.cards) {
+  for (const card of orderedCards(active)) {
     for (const row of card.rows) if (!active.logged[row.key]) return row;
   }
   return null;
@@ -244,6 +258,13 @@ export const useSessionStore = create<SessionState>()(
           useAppStore.getState().setSlotOverride(slotOverrideKey(session.block, session.sessionType, slotIndex), newExerciseId);
         }
       },
+
+      moveCardToEnd: (cardIndex) =>
+        set((s) => {
+          if (!s.active) return s;
+          const order = orderedCards(s.active).map((c) => c.index).filter((i) => i !== cardIndex);
+          return { active: { ...s.active, cardOrder: [...order, cardIndex] } };
+        }),
 
       beginCalibration: (rowKey, predictedRir) => set((s) => (s.active ? { active: { ...s.active, calibration: { rowKey, predictedRir }, calibrationOffered: true } } : s)),
       cancelCalibration: () => set((s) => (s.active ? { active: { ...s.active, calibration: null } } : s)),
