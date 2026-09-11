@@ -4,13 +4,12 @@ import { getCoreStage } from '@/program/core';
 import { deloadCorePrescriptions, deloadPrescriptions, halveSets, minimumPrescriptions } from './variants';
 
 describe('minimum session (Part 5.4)', () => {
-  it('first 3 exercises, 2 sets each, RIR 3, no supersets', () => {
+  it('first 3 exercises, 2 sets each, RIR 3', () => {
     const m = minimumPrescriptions(getBlock(1).sessions.PUSH);
     expect(m.map((p) => p.exerciseId)).toEqual(['barbell-bench-press', 'incline-db-press', 'seated-db-ohp']);
     for (const p of m) {
       expect(p.sets).toBe(2);
       expect(p.rir).toEqual({ min: 3, max: 3 });
-      expect(p.superset).toBeUndefined();
     }
   });
 });

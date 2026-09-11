@@ -47,8 +47,7 @@ export const REST_TABLE: ReadonlyArray<{ type: string; rest: string }> = [
   { type: 'Main barbell lifts, hypertrophy blocks', rest: '2.5–3 min' },
   { type: 'Main barbell lifts, strength blocks', rest: '3–5 min' },
   { type: 'Secondary compounds', rest: '2–3 min' },
-  { type: 'Isolation', rest: '1–1.5 min' },
-  { type: 'Superset pairs (SS)', rest: 'Alternate exercises, ~60–75 s between efforts' },
+  { type: 'Isolation', rest: '1–1.5 min in the document; the app defaults to 60 s (no supersets are run)' },
 ];
 
 export const ON_RAMP: ReadonlyArray<{ week: string; rir: string; loads: string }> = [

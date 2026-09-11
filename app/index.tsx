@@ -6,7 +6,7 @@ import { rollingWeeklyAverage, sessionsInProgramWeek } from '@/engine/attendance
 import { addDays, dayKey } from '@/engine/dates';
 import { sessionAt } from '@/engine/queue';
 import type { Variant } from '@/engine/session-builder';
-import { isMultiStall, stallStep, stallStepText } from '@/engine/stall';
+import { LOAD_TOO_HEAVY_TEXT, isLoadTooHeavy, isMultiStall, stallStep, stallStepText } from '@/engine/stall';
 import { weekInfo } from '@/engine/week';
 import { getExercise } from '@/program/exercises';
 import { STALL_STEP_7 } from '@/program/reference';
@@ -33,6 +33,7 @@ export default function Home() {
   const info = useMemo(() => (startDay ? weekInfo(startDay, now) : null), [startDay, now]);
   const dates = useMemo(() => repo.getSessionDates(), [tick]);
   const stalls = useMemo(() => repo.getActiveStalls(), [tick]);
+  const history = useMemo(() => (stalls.length ? repo.getHistoryByExercise() : {}), [stalls]);
   const doneToday = useMemo(() => todayHasFinishedSession(now), [now]);
 
   if (!startDay || !info) return <Redirect href="/onboarding" />;
@@ -93,11 +94,12 @@ export default function Home() {
           <Txt variant="caption">Stalled</Txt>
           {stalls.map((s) => {
             const step = s.stepOverride ?? stallStep(new Date(s.flaggedAt), now);
+            const tooHeavy = isLoadTooHeavy(history[s.exerciseId] ?? []);
             return (
               <View key={s.id} style={{ gap: 2 }}>
                 <Txt>{getExercise(s.exerciseId).name}</Txt>
                 <Txt variant="small" muted>
-                  Step {step}: {stallStepText(step)}
+                  {tooHeavy ? LOAD_TOO_HEAVY_TEXT : `Step ${step}: ${stallStepText(step)}`}
                 </Txt>
               </View>
             );

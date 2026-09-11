@@ -8,7 +8,7 @@ import { parseDayKey } from '@/engine/dates';
 import type { PlannedSetRow } from '@/engine/types';
 import { ensureNotificationPermission } from '@/services/notifications';
 import { useAppStore } from '@/store/app';
-import { useSessionStore } from '@/store/session';
+import { orderedCards, useSessionStore } from '@/store/session';
 import { Banner } from '@/ui/components/Banner';
 import { Button } from '@/ui/components/Button';
 import { Card } from '@/ui/components/Card';
@@ -41,7 +41,8 @@ export default function SessionScreen() {
 
   if (!active) return <Redirect href="/" />;
 
-  const rows = active.session.cards.flatMap((card) => card.rows);
+  const cards = orderedCards(active);
+  const rows = cards.flatMap((card) => card.rows);
   const nextKey = store.nextRowKey();
   const activeKey = manualKey && !active.logged[manualKey] && rows.some((r) => r.key === manualKey) ? manualKey : nextKey;
   const activeRow = rows.find((r) => r.key === activeKey) ?? null;
@@ -112,10 +113,12 @@ export default function SessionScreen() {
             <Button title="Not this time" variant="ghost" onPress={store.markCalibrationOffered} />
           </Card>
         ) : null}
-        {active.session.cards.map((card) => (
+        {cards.map((card, position) => (
           <ExerciseCard
             key={card.index}
             card={card}
+            canMoveLater={position < cards.length - 1 && card.rows.some((r) => !active.logged[r.key])}
+            onLater={() => store.moveCardToEnd(card.index)}
             activeKey={activeKey}
             values={(row) => store.rowValue(row)}
             isLogged={(key) => !!active.logged[key]}

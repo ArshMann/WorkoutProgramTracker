@@ -3,9 +3,8 @@ import type { Prescription } from '@/program/types';
 
 /**
  * Part 5.4 — the minimum session: first 3 exercises of the queued session,
- * 2 sets each, RIR 3. No progression attempts, no failure work. Supersets
- * are dropped (the partner is outside the first three) and so is the core
- * block.
+ * 2 sets each, RIR 3. No progression attempts, no failure work. The core
+ * block is dropped.
  */
 export function minimumPrescriptions(session: readonly Prescription[]): Prescription[] {
   return session.slice(0, MINIMUM_SESSION.exercises).map((p) => ({
@@ -13,8 +12,6 @@ export function minimumPrescriptions(session: readonly Prescription[]): Prescrip
     sets: MINIMUM_SESSION.sets,
     rir: p.rir === null ? null : { ...MINIMUM_SESSION.rir },
     lastSet: undefined,
-    superset: undefined,
-    rest: p.rest === 'superset' ? 'isolation' : p.rest,
   }));
 }
 

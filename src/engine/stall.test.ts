@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectStall, isMultiStall, stallStep } from './stall';
+import { detectStall, isLoadTooHeavy, isMultiStall, stallStep } from './stall';
 import type { Appearance } from './types';
 
 const app = (date: string, sets: Array<[number, number]>, kind: Appearance['kind'] = 'queue'): Appearance => ({
@@ -78,5 +78,37 @@ describe('stall detection (Part 11 trigger)', () => {
   it('three or more simultaneous stalls is a fatigue problem (step 7)', () => {
     expect(isMultiStall(2)).toBe(false);
     expect(isMultiStall(3)).toBe(true);
+  });
+});
+
+describe('load too heavy (D18) — not a stall', () => {
+  const heavy = (date: string, rir: number): Appearance => ({
+    sessionId: date,
+    date,
+    kind: 'queue',
+    repRanges: [{ min: 6, max: 10 }, { min: 6, max: 10 }, { min: 6, max: 10 }],
+    rirTargets: [{ min: 2, max: 2 }, { min: 2, max: 2 }, { min: 2, max: 2 }],
+    sets: [
+      { load: 135, reps: 10, rir },
+      { load: 135, reps: 10, rir },
+      { load: 135, reps: 10, rir },
+    ],
+  });
+
+  it('three appearances at the top of the range but below the target RIR', () => {
+    const h = [heavy('2026-02-01', 0), heavy('2026-02-04', 1), heavy('2026-02-07', 0)];
+    expect(isLoadTooHeavy(h)).toBe(true);
+    // The same history also reads as a stall to the rep counter; the copy must prefer the heavy diagnosis.
+    expect(detectStall([heavy('2026-01-29', 0), ...h]).stalled).toBe(true);
+  });
+
+  it('an appearance at the target RIR breaks the pattern', () => {
+    expect(isLoadTooHeavy([heavy('2026-02-01', 0), heavy('2026-02-04', 2), heavy('2026-02-07', 0)])).toBe(false);
+  });
+
+  it('needs three appearances and stored RIR targets', () => {
+    expect(isLoadTooHeavy([heavy('2026-02-01', 0), heavy('2026-02-04', 0)])).toBe(false);
+    const noTargets = { ...heavy('2026-02-07', 0), rirTargets: undefined };
+    expect(isLoadTooHeavy([heavy('2026-02-01', 0), heavy('2026-02-04', 0), noTargets])).toBe(false);
   });
 });

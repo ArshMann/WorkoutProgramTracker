@@ -10,8 +10,9 @@ import type { Block, Prescription, RepRange, RirTarget } from './types';
  *
  * Conventions:
  *  - `rir: {min, max}`; a single document value is min === max.
- *  - `superset: 'A' | 'B'` pairs two exercises in a session. `'CORE'` pairs
- *    an exercise with the core block that follows (Block 1 LEGS #7).
+ *  - The document's "SS" pairings are not encoded: every exercise runs as
+ *    straight sets in table order, and the core block follows the calf work
+ *    on LEGS days. Set counts are the document's, unchanged.
  *  - `rest` follows Part 1.6 by the exercise's role and the block's emphasis.
  */
 
@@ -33,14 +34,13 @@ const BLOCK1_PUSH: readonly Prescription[] = [
   },
   { exerciseId: 'incline-db-press', sets: 3, reps: reps(8, 12), rir: rir(1, 2), rest: 'secondary' },
   { exerciseId: 'seated-db-ohp', sets: 3, reps: reps(8, 12), rir: rir(1, 2), rest: 'secondary' },
-  { exerciseId: 'cable-fly', sets: 2, reps: reps(12, 15), rir: rir(1), rest: 'superset', superset: 'A' },
+  { exerciseId: 'cable-fly', sets: 2, reps: reps(12, 15), rir: rir(1), rest: 'isolation' },
   {
     exerciseId: 'cable-lateral-raise',
     sets: 4,
     reps: reps(12, 20),
     rir: rir(0, 1),
-    rest: 'superset',
-    superset: 'A',
+    rest: 'isolation',
     notes: 'One arm at a time is fine.',
   },
   {
@@ -48,10 +48,9 @@ const BLOCK1_PUSH: readonly Prescription[] = [
     sets: 2,
     reps: reps(10, 15),
     rir: rir(1),
-    rest: 'superset',
-    superset: 'B',
+    rest: 'isolation',
   },
-  { exerciseId: 'cable-pressdown', sets: 2, reps: reps(12, 15), rir: rir(0, 1), rest: 'superset', superset: 'B' },
+  { exerciseId: 'cable-pressdown', sets: 2, reps: reps(12, 15), rir: rir(0, 1), rest: 'isolation' },
 ];
 
 const BLOCK1_PULL: readonly Prescription[] = [
@@ -65,11 +64,11 @@ const BLOCK1_PULL: readonly Prescription[] = [
   },
   { exerciseId: 'chest-supported-row', sets: 3, reps: reps(8, 12), rir: rir(1, 2), rest: 'secondary' },
   { exerciseId: 'seated-cable-row', sets: 2, reps: reps(10, 15), rir: rir(1), rest: 'secondary' },
-  { exerciseId: 'reverse-pec-deck', sets: 3, reps: reps(12, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
-  { exerciseId: 'db-lateral-raise', sets: 3, reps: reps(15, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
+  { exerciseId: 'reverse-pec-deck', sets: 3, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
+  { exerciseId: 'db-lateral-raise', sets: 3, reps: reps(15, 20), rir: rir(0, 1), rest: 'isolation' },
   { exerciseId: 'ez-bar-curl', sets: 3, reps: reps(8, 12), rir: rir(1), rest: 'isolation' },
-  { exerciseId: 'hammer-curl', sets: 2, reps: reps(10, 15), rir: rir(0, 1), rest: 'superset', superset: 'B' },
-  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(15, 20), rir: rir(0, 1), rest: 'superset', superset: 'B' },
+  { exerciseId: 'hammer-curl', sets: 2, reps: reps(10, 15), rir: rir(0, 1), rest: 'isolation' },
+  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(15, 20), rir: rir(0, 1), rest: 'isolation' },
 ];
 
 const BLOCK1_LEGS: readonly Prescription[] = [
@@ -98,16 +97,13 @@ const BLOCK1_LEGS: readonly Prescription[] = [
     sets: 3,
     reps: reps(10, 15),
     rir: rir(0, 1),
-    rest: 'superset',
-    superset: 'CORE',
-    notes: 'SS with core block.',
+    rest: 'isolation',
   },
   // #8 Core/APT block — Stage 1 is appended by the session builder (coreStage: 1).
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Block 2 — Hypertrophy 2 (Weeks 10–17; deload week 17)
-// The document's Block 2 tables carry no SS marks, so none are encoded.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BLOCK2_PUSH: readonly Prescription[] = [
@@ -186,9 +182,9 @@ const BLOCK3_PULL: readonly Prescription[] = [
   { exerciseId: 'reverse-pec-deck', sets: 3, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
   { exerciseId: 'db-lateral-raise', sets: 3, reps: reps(15, 20), rir: rir(0, 1), rest: 'isolation' },
   { exerciseId: 'ez-bar-curl', sets: 3, reps: reps(8, 12), rir: rir(1), rest: 'isolation' },
-  // "Hammer curl + wrist curl SS | 2 + 2 × 12–20"
-  { exerciseId: 'hammer-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
-  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
+  // "Hammer curl + wrist curl | 2 + 2 × 12–20"
+  { exerciseId: 'hammer-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
+  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
 ];
 
 const BLOCK3_LEGS: readonly Prescription[] = [
@@ -212,7 +208,7 @@ const BLOCK3_LEGS: readonly Prescription[] = [
 // Block 4 — Hypertrophy 3 (Weeks 27–35; deload week 35)
 // "Run Block 1's tables with these swaps. Everything unlisted stays as in
 // Block 1." Rule applied: a replacement inherits any attribute the swap table
-// does not state (RIR, rest, superset) from the Block 1 slot it replaces. An
+// does not state (RIR, rest) from the Block 1 slot it replaces. An
 // exercise that is the same lift as in Block 1 keeps its own values.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -245,14 +241,13 @@ const BLOCK4_PUSH: readonly Prescription[] = [
     notes: 'Block 4 swap for seated DB OHP.',
   },
   // Unlisted — as Block 1:
-  { exerciseId: 'cable-fly', sets: 2, reps: reps(12, 15), rir: rir(1), rest: 'superset', superset: 'A' },
+  { exerciseId: 'cable-fly', sets: 2, reps: reps(12, 15), rir: rir(1), rest: 'isolation' },
   {
     exerciseId: 'cable-lateral-raise',
     sets: 4,
     reps: reps(12, 20),
     rir: rir(0, 1),
-    rest: 'superset',
-    superset: 'A',
+    rest: 'isolation',
     notes: 'One arm at a time is fine.',
   },
   {
@@ -260,10 +255,9 @@ const BLOCK4_PUSH: readonly Prescription[] = [
     sets: 2,
     reps: reps(10, 15),
     rir: rir(1),
-    rest: 'superset',
-    superset: 'B',
+    rest: 'isolation',
   },
-  { exerciseId: 'cable-pressdown', sets: 2, reps: reps(12, 15), rir: rir(0, 1), rest: 'superset', superset: 'B' },
+  { exerciseId: 'cable-pressdown', sets: 2, reps: reps(12, 15), rir: rir(0, 1), rest: 'isolation' },
 ];
 
 const BLOCK4_PULL: readonly Prescription[] = [
@@ -289,11 +283,11 @@ const BLOCK4_PULL: readonly Prescription[] = [
   },
   // Unlisted — as Block 1:
   { exerciseId: 'seated-cable-row', sets: 2, reps: reps(10, 15), rir: rir(1), rest: 'secondary' },
-  { exerciseId: 'reverse-pec-deck', sets: 3, reps: reps(12, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
-  { exerciseId: 'db-lateral-raise', sets: 3, reps: reps(15, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
+  { exerciseId: 'reverse-pec-deck', sets: 3, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
+  { exerciseId: 'db-lateral-raise', sets: 3, reps: reps(15, 20), rir: rir(0, 1), rest: 'isolation' },
   { exerciseId: 'ez-bar-curl', sets: 3, reps: reps(8, 12), rir: rir(1), rest: 'isolation' },
-  { exerciseId: 'hammer-curl', sets: 2, reps: reps(10, 15), rir: rir(0, 1), rest: 'superset', superset: 'B' },
-  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(15, 20), rir: rir(0, 1), rest: 'superset', superset: 'B' },
+  { exerciseId: 'hammer-curl', sets: 2, reps: reps(10, 15), rir: rir(0, 1), rest: 'isolation' },
+  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(15, 20), rir: rir(0, 1), rest: 'isolation' },
 ];
 
 const BLOCK4_LEGS: readonly Prescription[] = [
@@ -349,9 +343,7 @@ const BLOCK4_LEGS: readonly Prescription[] = [
     sets: 3,
     reps: reps(10, 15),
     rir: rir(0, 1),
-    rest: 'superset',
-    superset: 'CORE',
-    notes: 'SS with core block.',
+    rest: 'isolation',
   },
   // Core block → Stage 4 (coreStage: 4).
 ];
@@ -393,8 +385,8 @@ const BLOCK5_PULL: readonly Prescription[] = [
   { exerciseId: 'reverse-pec-deck', sets: 3, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
   { exerciseId: 'db-lateral-raise', sets: 3, reps: reps(15, 20), rir: rir(0, 1), rest: 'isolation' },
   { exerciseId: 'ez-bar-curl', sets: 3, reps: reps(8, 12), rir: rir(1), rest: 'isolation' },
-  { exerciseId: 'hammer-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
-  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'superset', superset: 'A' },
+  { exerciseId: 'hammer-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
+  { exerciseId: 'db-wrist-curl', sets: 2, reps: reps(12, 20), rir: rir(0, 1), rest: 'isolation' },
 ];
 
 const BLOCK5_LEGS: readonly Prescription[] = [

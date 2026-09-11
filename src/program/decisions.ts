@@ -10,10 +10,11 @@ import type { RepRange, RestCategory, RirTarget } from './types';
 
 /**
  * D1 — RIR chip default for a range target ("1–2", "0–1", "2–3", "3–4").
- * The chip row needs one number. 'max' picks the more conservative end
- * (1–2 → 2). Alternative: 'min'.
+ * The chip row needs one number. 'min' puts the unexamined default at the
+ * harder end (1–2 → 1), because the lifter is more likely to undershoot
+ * effort than overshoot it. Alternative: 'max'.
  */
-export const RIR_DEFAULT_FROM_RANGE: 'min' | 'max' = 'max';
+export const RIR_DEFAULT_FROM_RANGE: 'min' | 'max' = 'min';
 
 /**
  * D2 — "at the target RIR" in the progression check. A set counts toward
@@ -35,9 +36,9 @@ export const DELOAD_KEEPS_CORE_SETS = true;
  * "2–3 weeks", "4+ weeks"; the gaps between them are filled here).
  */
 export const LAYOFF_DAYS = {
-  /** ≤ this many days since the last session: nothing. */
-  nothingUpTo: 3,
-  /** 4..weekUpTo → repeat last loads, no progression. */
+  /** ≤ this many days since the last session: nothing. "Miss 2–3 days" is 3–4 days since the last session. */
+  nothingUpTo: 4,
+  /** 5..weekUpTo → repeat last loads, no progression. */
   weekUpTo: 13,
   /** 14..twoToThreeWeeksUpTo → −10 %, RIR 2–3 for one full loop. */
   twoToThreeWeeksUpTo: 27,
@@ -68,14 +69,15 @@ export const CALIBRATION_INTERVAL_DAYS = 21;
 
 /**
  * D7 — Rest timer seconds. The document gives ranges; one value is needed.
- * All are editable in Settings.
+ * Supersets are not run (equipment availability), so their time saving is
+ * recovered from isolation rests instead: 60 s rather than the document's
+ * 1–1.5 min. Compound rests are unchanged. All are editable in Settings.
  */
 export const REST_SECONDS_DEFAULT: Record<RestCategory, number> = {
   'main-hypertrophy': 180, // 2.5–3 min
   'main-strength': 240, // 3–5 min
   secondary: 150, // 2–3 min
-  isolation: 90, // 1–1.5 min
-  superset: 60, // ~60–75 s
+  isolation: 60, // document: 1–1.5 min; shortened to recover superset time
 };
 
 /**
@@ -126,3 +128,12 @@ export const FIRST_APPEARANCE_BARBELL_LOAD_LB = 45;
 
 /** D16 — Bodyweight calibration (Part 8.1) needs this many days of weigh-ins before it evaluates. */
 export const CALORIE_CALIBRATION_MIN_DAYS = 21;
+
+/**
+ * D18 — Not a stall: an exercise that keeps hitting the top of its range but
+ * only at an RIR below the target's minimum never earns an increase under
+ * D2. After this many consecutive appearances of that pattern the copy says
+ * "load too heavy, drop 5 % and rebuild" instead of the Part 11 steps.
+ */
+export const LOAD_TOO_HEAVY_APPEARANCES = 3;
+export const LOAD_TOO_HEAVY_DROP = 0.05;

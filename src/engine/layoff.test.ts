@@ -7,7 +7,8 @@ describe('layoff matrix (Part 5)', () => {
     expect(classifyLayoff(0)).toBe('none');
     expect(classifyLayoff(1)).toBe('none');
     expect(classifyLayoff(3)).toBe('none');
-    expect(classifyLayoff(4)).toBe('week');
+    expect(classifyLayoff(4)).toBe('none'); // "miss 2–3 days" = 3–4 days since the last session
+    expect(classifyLayoff(5)).toBe('week');
     expect(classifyLayoff(7)).toBe('week');
     expect(classifyLayoff(13)).toBe('week');
     expect(classifyLayoff(14)).toBe('two-to-three-weeks');
@@ -16,7 +17,7 @@ describe('layoff matrix (Part 5)', () => {
     expect(classifyLayoff(90)).toBe('four-plus-weeks');
   });
 
-  it('1–3 days: nothing', () => {
+  it('1–4 days since the last session: nothing', () => {
     const e = layoffEffect('none', 2);
     expect(e).toMatchObject({ loadFactor: 1, rirOverride: null, suppressProgression: false, restartBlock: false, copy: null });
   });

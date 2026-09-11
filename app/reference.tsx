@@ -78,11 +78,6 @@ export default function Reference() {
               </Txt>
               <View style={{ flex: 1 }}>
                 <Txt>{getExercise(p.exerciseId).name}</Txt>
-                {p.superset ? (
-                  <Txt variant="small" faint>
-                    SS {p.superset === 'CORE' ? 'with core block' : p.superset}
-                  </Txt>
-                ) : null}
                 {p.notes ? (
                   <Txt variant="small" faint>
                     {p.notes}
