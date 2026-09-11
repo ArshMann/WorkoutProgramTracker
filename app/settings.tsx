@@ -8,6 +8,8 @@ import { formatSeconds } from '@/engine/rest';
 import { PROGRAM_VERSION } from '@/program';
 import type { RestCategory } from '@/program/types';
 import { applyImport, exportToShareSheet, pickImportFile } from '@/services/export';
+import * as repo from '@/db/repo';
+import { Row } from '@/ui/components/Row';
 import { kv } from '@/storage/kv';
 import { useAppStore, type ThemePref } from '@/store/app';
 import { useSessionStore } from '@/store/session';
@@ -118,35 +120,55 @@ export default function Settings() {
         <Button title="Import a backup…" variant="secondary" onPress={doImport} />
       </Card>
 
+      <Card>
+        <Row label="Export PDF report" sub="Attendance, session log, progression, body metrics — for reading, not backup." onPress={() => router.push('/report')} />
+      </Card>
+
       <Card style={{ gap: space.sm }}>
         <Txt variant="caption">About</Txt>
         <Txt variant="small" muted>
           Program v{PROGRAM_VERSION} · app {Constants.expoConfig?.version ?? ''} · state store: {kv().backend}
         </Txt>
+      </Card>
+
+      <View style={{ height: space.xxl }} />
+      <View style={[styles.danger, { borderColor: c.danger }]}>
+        <Txt variant="caption" style={{ color: c.danger }}>
+          Danger zone
+        </Txt>
+        <Txt variant="small" muted>
+          Reset program progress clears sessions, sets and the queue position and keeps bodyweight, waist, photos and settings.
+        </Txt>
         <Button
-          title="Reset program state"
+          title="Reset program progress"
           variant="danger"
           onPress={() =>
-            Alert.alert('Reset program state?', 'Clears the start date, queue position and overrides. Logged sessions are kept.', [
+            Alert.alert('Reset program progress?', 'Deletes every logged session and set, stall flags, calibration sets and block reviews, and puts the queue back to PUSH. Bodyweight, waist, photos, the start date and settings are kept.', [
               { text: 'Cancel', style: 'cancel' },
               {
-                text: 'Reset',
+                text: 'Reset progress',
                 style: 'destructive',
                 onPress: () => {
-                  useSessionStore.getState().discard();
-                  app.resetProgram();
-                  router.replace('/onboarding');
+                  useSessionStore.setState({ active: null, timer: { endsAt: null, totalSeconds: 0, label: '' } });
+                  repo.clearProgress();
+                  app.resetProgress();
+                  router.replace('/');
                 },
               },
             ])
           }
         />
-      </Card>
+        <Txt variant="small" muted style={{ marginTop: space.sm }}>
+          Erase all data removes everything and returns to the start-date screen.
+        </Txt>
+        <Button title="Erase all data…" variant="danger" onPress={() => router.push('/erase')} />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  danger: { borderTopWidth: 1, paddingTop: space.lg, gap: space.sm },
   chip: { flex: 1, minHeight: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   restRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48 },
   pm: { width: 44, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },

@@ -1,4 +1,4 @@
-import { asc, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull } from 'drizzle-orm';
 import { PROGRAM_VERSION } from '@/program';
 import type { Appearance, LoggedSet, SessionKind } from '@/engine/types';
 import { getDb, getSqlite } from './client';
@@ -26,6 +26,8 @@ import {
   type StallRow,
 } from './schema';
 
+export type { SetRow } from './schema';
+
 export function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -43,7 +45,39 @@ export interface NewSession {
 }
 
 export function createSession(s: NewSession): void {
-  getDb().insert(sessions).values({ ...s, finishedAt: null, programVersion: PROGRAM_VERSION }).run();
+  getDb().insert(sessions).values({ ...s, finishedAt: null, programVersion: PROGRAM_VERSION, editedAt: null }).run();
+}
+
+/** A session logged after the fact: created already finished, at the chosen date. */
+export function createFinishedSession(s: NewSession & { finishedAt: string }): void {
+  getDb().insert(sessions).values({ ...s, programVersion: PROGRAM_VERSION, editedAt: null }).run();
+}
+
+export function markSessionEdited(id: string, at: string): void {
+  getDb().update(sessions).set({ editedAt: at }).where(eq(sessions.id, id)).run();
+}
+
+export function updateSessionDate(id: string, startedAt: string, finishedAt: string): void {
+  getDb().update(sessions).set({ startedAt, finishedAt }).where(eq(sessions.id, id)).run();
+}
+
+export interface SessionSummary extends SessionRow {
+  exerciseCount: number;
+  setCount: number;
+}
+
+/** Finished sessions, oldest first, with exercise and set counts for the Home cards. */
+export function getSessionSummaries(): SessionSummary[] {
+  const counts = getSqlite().getAllSync<{ session_id: string; exercises: number; sets: number }>(
+    'SELECT session_id, COUNT(DISTINCT exercise_id) AS exercises, COUNT(*) AS sets FROM sets GROUP BY session_id',
+  );
+  const byId = new Map(counts.map((c) => [c.session_id, c]));
+  return getFinishedSessions().map((s) => ({ ...s, exerciseCount: byId.get(s.id)?.exercises ?? 0, setCount: byId.get(s.id)?.sets ?? 0 }));
+}
+
+/** Queue-advancing sessions (everything but full-body) that are finished — the queue position is derived from this. */
+export function countQueueAdvancingSessions(): number {
+  return getFinishedSessions().filter((s) => s.kind !== 'fullbody').length;
 }
 
 export function finishSession(id: string, finishedAt: string): void {
@@ -93,6 +127,7 @@ export interface NewSet {
   rirMax: number | null;
   countsForProgression: boolean;
   loggedAt: string;
+  prescribedSets?: number | null;
 }
 
 export function upsertSet(s: NewSet): void {
@@ -104,6 +139,7 @@ export function upsertSet(s: NewSet): void {
     pain: s.pain ? 1 : 0,
     toFailure: s.toFailure ? 1 : 0,
     countsForProgression: s.countsForProgression ? 1 : 0,
+    prescribedSets: s.prescribedSets ?? null,
   };
   db.insert(sets)
     .values(values)
@@ -113,6 +149,23 @@ export function upsertSet(s: NewSet): void {
 
 export function deleteSet(sessionId: string, cardIndex: number, slotIndex: number, setIndex: number): void {
   getDb().delete(sets).where(eq(sets.id, `${sessionId}:${cardIndex}:${slotIndex}:${setIndex}`)).run();
+}
+
+export function updateSetById(id: string, patch: Partial<Pick<SetRow, 'load' | 'reps' | 'rir' | 'pain' | 'toFailure'>>): void {
+  getDb().update(sets).set(patch).where(eq(sets.id, id)).run();
+}
+
+export function deleteSetById(id: string): void {
+  getDb().delete(sets).where(eq(sets.id, id)).run();
+}
+
+/** Point every set of one slot at a different exercise (editing a substitution after the fact). */
+export function reassignSlotExercise(sessionId: string, cardIndex: number, slotIndex: number, exerciseId: string, substitutedFrom: string | null): void {
+  getDb()
+    .update(sets)
+    .set({ exerciseId, substitutedFrom })
+    .where(and(eq(sets.sessionId, sessionId), eq(sets.cardIndex, cardIndex), eq(sets.slotIndex, slotIndex)))
+    .run();
 }
 
 export function getSetsForSession(sessionId: string): SetRow[] {
@@ -146,11 +199,14 @@ export function getHistoryByExercise(): Record<string, Appearance[]> {
     const apps: Appearance[] = [];
     for (const [sessionId, rows] of bySession) {
       const s = byId.get(sessionId)!;
+      const prescribed = Math.max(rows.length, ...rows.map((r) => r.prescribedSets ?? 0));
+      const repRanges = rows.map((r) => ({ min: r.repMin, max: r.repMax }));
+      while (repRanges.length < prescribed) repRanges.push(repRanges[repRanges.length - 1]);
       apps.push({
         sessionId,
         date: s.startedAt,
         kind: s.kind as SessionKind,
-        repRanges: rows.map((r) => ({ min: r.repMin, max: r.repMax })),
+        repRanges,
         rirTargets: rows.map((r) => (r.rirMin === null ? null : { min: r.rirMin, max: r.rirMax ?? r.rirMin })),
         sets: rows.map(toLogged),
         modified: !!s.banner,
@@ -281,6 +337,16 @@ export function getBlockReview(block: number): BlockReviewRow | null {
 export function saveBlockReview(block: number, answers: Record<string, unknown>, completedAt: string): void {
   const row = { block, completedAt, answers: JSON.stringify(answers) };
   getDb().insert(blockReviews).values(row).onConflictDoUpdate({ target: blockReviews.block, set: row }).run();
+}
+
+// ───────────── resets ─────────────
+
+/** "Reset program progress": sessions, sets and everything derived from them. Body metrics, photos and settings stay. */
+export function clearProgress(): void {
+  const s = getSqlite();
+  s.withTransactionSync(() => {
+    for (const t of ['sets', 'sessions', 'stalls', 'calibrations', 'block_reviews']) s.runSync(`DELETE FROM ${t}`);
+  });
 }
 
 // ───────────── export / import ─────────────

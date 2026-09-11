@@ -64,7 +64,12 @@ host (EAS builds it in the cloud); Expo Go on iOS works for Option A.
 ```
 app/                          expo-router screens
   _layout.tsx                 stack, theme, DB migrations, notification channel
-  index.tsx                   Home — NEXT card, Start, sessions this week, variants, stalls
+  index.tsx                   Home — swipeable strip of logged sessions ending in the NEXT card; Start, variants, stalls
+  history.tsx                 Jump list of every logged session (by program week); log a past session
+  edit/[id].tsx               Edit any logged session: loads, reps, RIR, pain, substitution; add/delete sets; delete session
+  edit/new.tsx                Log a session you forgot, at a chosen date; queue re-derived as if logged then
+  erase.tsx                   Erase all data (type ERASE; backup first) — reachable only from Settings
+  report.tsx                  PDF report: range, photos toggle, export via the share sheet
   onboarding.tsx              the single onboarding screen: program start date (+ restore)
   session.tsx                 Active session — cards in walk order, one-tap ✓, "Later ↓", rest bar, calibration prompt
   substitute.tsx              Part 3 substitutes for a slot (modal) + joint fallback
@@ -97,12 +102,14 @@ src/
     types.ts                  Appearance / PlannedSession types shared with the stores
     session-builder.ts        composes all of the above into a planned session; substitutions
     calibration.ts            RIR calibration cadence + Part 8.1 calorie rules
+    derive.ts                 queue position and layoff loop re-derived from the session history
     attendance.ts             sessions per week (a count, never a streak), 4-week average
     e1rm.ts / rest.ts / dates.ts
   db/                         schema.ts (Drizzle) · migrations.ts (hand-written DDL) · repo.ts (queries)
   storage/kv.ts               MMKV with SQLite fallback; Zustand storage adapter
   store/                      app.ts (persisted app state) · session.ts (active session, timer) · context.ts
-  services/                   notifications, haptics, export/import, photos
+  report/build.ts             the printable report as plain HTML with inline SVG charts (pure, tested)
+  services/                   notifications, haptics, export/import, photos, PDF report (expo-print)
   ui/                         theme + components (Stepper, RirChips, SetRow, ExerciseCard, RestBar, …)
 ```
 
@@ -143,6 +150,13 @@ All three are in this tree; `npm test` verifies the rules directly.
 - **"Later ↓"** on a card moves it to the end of today's walk order (busy
   station). It changes nothing but the order — prefill, history and
   progression are untouched.
+- **History is editable, and derived state follows it.** Any logged session
+  can be opened from the Home strip and corrected (same steppers and chips,
+  no timer, no suggestions). Every edit writes to the database, marks the
+  session "edited", and re-derives the queue position (finished non-full-body
+  sessions mod 3), the return-loop layoff effect (replayed over the gaps) and
+  the stall flags from history — `engine/derive.ts`. Progression prefill
+  already reads history live. The strip shows sessions, never calendar days.
 - **Sessions this week** is a count over the program's own week; it never
   turns red, resets with emphasis, or warns.
 

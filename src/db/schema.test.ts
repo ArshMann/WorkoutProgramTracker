@@ -16,6 +16,7 @@ describe('schema ↔ migrations parity', () => {
         .split(/,\s*\n?/)
         .map((l) => l.trim().split(/\s+/)[0])
         .filter(Boolean);
+      for (const alter of ddl.matchAll(new RegExp(`ALTER TABLE ${name} ADD COLUMN (\\w+)`, 'g'))) ddlCols.push(alter[1]);
       const drizzleCols = Object.values(getTableColumns(table)).map((c) => c.name);
       expect(ddlCols.sort(), name).toEqual(drizzleCols.sort());
       expect(TABLE_NAMES).toContain(name);

@@ -90,6 +90,8 @@ export const MIGRATIONS: readonly string[][] = [
     );`,
     `CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);`,
   ],
+  // v2 — history editing: "edited" marker on sessions; the prescribed set count on each set row
+  [`ALTER TABLE sessions ADD COLUMN edited_at TEXT;`, `ALTER TABLE sets ADD COLUMN prescribed_sets INTEGER;`],
 ];
 
 export const TABLE_NAMES = [

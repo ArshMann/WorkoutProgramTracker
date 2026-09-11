@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/expo-sqlite';
-import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
+import { deleteDatabaseSync, openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 import { MIGRATIONS } from './migrations';
 import { schema } from './schema';
 
@@ -33,4 +33,21 @@ export function runMigrations(): void {
       s.execSync(`PRAGMA user_version = ${v + 1};`);
     });
   }
+}
+
+/** Erase everything: close, delete the database file, recreate it empty. */
+export function resetDatabase(): void {
+  try {
+    sqlite?.closeSync();
+  } catch {
+    // already closed
+  }
+  sqlite = null;
+  db = null;
+  try {
+    deleteDatabaseSync(DB_NAME);
+  } catch {
+    // no file yet
+  }
+  runMigrations();
 }

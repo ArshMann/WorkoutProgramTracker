@@ -15,6 +15,8 @@ export const sessions = sqliteTable('sessions', {
   week: integer('week').notNull(),
   banner: text('banner'),
   programVersion: text('program_version').notNull(),
+  /** Set when a finished session is modified after the fact. */
+  editedAt: text('edited_at'),
 });
 
 export const sets = sqliteTable('sets', {
@@ -37,6 +39,8 @@ export const sets = sqliteTable('sets', {
   rirMax: integer('rir_max'),
   countsForProgression: integer('counts_for_progression').notNull().default(1),
   loggedAt: text('logged_at').notNull(),
+  /** Sets prescribed for the exercise when this set was logged (progression checks all of them). */
+  prescribedSets: integer('prescribed_sets'),
 });
 
 export const exerciseSettings = sqliteTable('exercise_settings', {

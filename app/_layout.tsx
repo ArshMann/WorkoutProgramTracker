@@ -37,6 +37,11 @@ export default function RootLayout() {
         <Stack.Screen name="reference" options={{ title: 'Program' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="review" options={{ title: 'Block review' }} />
+        <Stack.Screen name="history" options={{ presentation: 'modal', title: 'Logged sessions' }} />
+        <Stack.Screen name="edit/[id]" options={{ title: 'Edit session' }} />
+        <Stack.Screen name="edit/new" options={{ title: 'Log a past session' }} />
+        <Stack.Screen name="erase" options={{ presentation: 'modal', title: 'Erase all data' }} />
+        <Stack.Screen name="report" options={{ title: 'PDF report' }} />
       </Stack>
     </SafeAreaProvider>
   );
